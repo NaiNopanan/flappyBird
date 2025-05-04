@@ -3,7 +3,7 @@ import birdImage from './sprites/bear.png'; // ปรับ path ให้ถู
 import pipeHead from './sprites/pipe-head.png'; // ปรับ path ให้ถูกต้อง
 import pipeBody from './sprites/pipe-body.png'; // ปรับ path ให้ถูกต้อง
 import cloudImage from './sprites/cloud.png'; // ปรับ path ให้ถูกต้อง
-import mountain from './sprites/mountain.jpg'; // ปรับ path ให้ถูกต้อง
+import mountain from './sprites/mountain2.png'; // ปรับ path ให้ถูกต้อง
 import city from './sprites/city.png'; // ปรับ path ให้ถูกต้อง
 import heart from './sprites/heart.png'; // ปรับ path ให้ถูกต้อง
 
@@ -428,17 +428,20 @@ const HrGame2: React.FC = () => {
                 const img = mountainImage.current;
                 const speed = 0.1;
 
-                mountainOffset.current = (mountainOffset.current - speed) % img.width;
-                const offset = Math.floor(mountainOffset.current); // << ปัดค่าให้เป็นจำนวนเต็ม
-                const y = canvasSize.current.height - img.height;
+                mountainOffset.current = (mountainOffset.current - speed) % s(img.width);
+                const offset = Math.floor(mountainOffset.current);
+                const scaledHeight = s(img.height);
+                const scaledWidth = s(img.width);
 
-                const imgCount = Math.ceil(canvasSize.current.width / img.width) + 2;
+                const y = canvasSize.current.height - scaledHeight;
+                const imgCount = Math.ceil(canvasSize.current.width / scaledWidth) + 2;
 
                 for (let i = 0; i < imgCount; i++) {
-                    const drawX = Math.floor(offset + i * img.width); // << ปัดตำแหน่งที่วาดด้วย
-                    ctx.drawImage(img, drawX, y, img.width, img.height);
+                    const drawX = Math.floor(offset + i * scaledWidth);
+                    ctx.drawImage(img, drawX, y, scaledWidth, scaledHeight);
                 }
             }
+
 
 
             if (cityImage.current) {
