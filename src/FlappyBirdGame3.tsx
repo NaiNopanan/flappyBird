@@ -295,6 +295,9 @@ const HrGame2: React.FC = () => {
         };
     }, []);
 
+    const getParallaxSpeed = (baseSpeed: number) => {
+        return baseSpeed + (difficulty.current - 1) * 0.1; // ปรับได้ตามต้องการ
+    };
 
 
 
@@ -463,7 +466,7 @@ const HrGame2: React.FC = () => {
 
                 if (dist < 100 && !item.collected) {
                     item.collected = true;
-                    if (item.type === 'heart' && lives.current < 3) {
+                    if (item.type === 'heart' && lives.current < 10) {
                         lives.current += 1;
                     }
                 }
@@ -494,7 +497,7 @@ const HrGame2: React.FC = () => {
 
             if (mountainImage.current) {
                 const img = mountainImage.current;
-                const speed = 0.1;
+                const speed = getParallaxSpeed(0.1);
 
                 mountainOffset.current = (mountainOffset.current - speed) % s(img.width);
                 const offset = Math.floor(mountainOffset.current);
@@ -514,7 +517,7 @@ const HrGame2: React.FC = () => {
 
             if (cityImage.current) {
                 const img = cityImage.current;
-                const speed = 0.3;
+                const speed = getParallaxSpeed(0.3);
 
                 cityOffset.current = (cityOffset.current - speed) % s(img.width);
                 const offset = Math.floor(cityOffset.current);
@@ -535,7 +538,7 @@ const HrGame2: React.FC = () => {
                 .slice() // clone เพื่อไม่แก้ array ต้นฉบับ
                 .sort((a, b) => a.speed - b.speed) // speed น้อย = ไกล → วาดก่อน
                 .forEach(cloud => {
-                    cloud.x -= cloud.speed;
+                    cloud.x -= getParallaxSpeed(cloud.speed);
                     if (cloud.x + cloud.width < 0) {
                         cloud.x = canvasSize.current.width + Math.random() * 200;
                         cloud.y = Math.random() * 200;
@@ -671,22 +674,22 @@ const HrGame2: React.FC = () => {
 
 
             if (heartImage.current) {
-                for (let i = 0; i < lives.current; i++) {
-                    const baseX = 30 + i * 60;
-                    const baseY = 120;
+                const heartsPerRow = 5;
+                const heartSize = 40;
 
-                    // 🕒 เวลาสำหรับ animation (เพิ่ม i * phase เพื่อไม่ให้เต้นพร้อมกัน)
+                for (let i = 0; i < lives.current; i++) {
+                    const row = Math.floor(i / heartsPerRow);
+                    const col = i % heartsPerRow;
+                    const drawX = 15 + col * (heartSize + 10);
+                    const drawY = 100 + row * (heartSize + 10);
+
                     const pulseTime = now / 300 + i * 0.8;
                     const scale = 1 + 0.1 * Math.sin(pulseTime);
+                    const size = heartSize * scale;
 
-                    const size = 60 * scale;
-                    const drawX = baseX + (24 - size) / 2; // center alignment
-                    const drawY = baseY + (24 - size) / 2;
-
-                    ctx.save();
                     ctx.drawImage(heartImage.current, drawX, drawY, size, size);
-                    ctx.restore();
                 }
+
             }
 
 
