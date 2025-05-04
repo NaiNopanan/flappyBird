@@ -230,6 +230,18 @@ const HrGame2: React.FC = () => {
 
     const scale = useRef(1);
 
+    const computeScale = (height: number) => {
+        const minHeight = 520;
+        const maxHeight = 1080;
+        const minScale = 0.5;
+        const maxScale = 1;
+
+        if (height <= minHeight) return minScale;
+        if (height >= maxHeight) return maxScale;
+
+        return minScale + ((height - minHeight) / (maxHeight - minHeight)) * (maxScale - minScale);
+    };
+
 
     useEffect(() => {
         const canvas = canvasRef.current!;
@@ -251,9 +263,7 @@ const HrGame2: React.FC = () => {
 
             birdX.current = canvasSize.current.width / 2;
 
-            // 🔸 คำนวณ scale จากความสูง
-            const baseHeight = 800;
-            scale.current = window.innerHeight / baseHeight;
+            scale.current = computeScale(window.innerHeight);
         };
 
         resize();
@@ -296,20 +306,23 @@ const HrGame2: React.FC = () => {
             updateDifficulty();
 
             const currentPipeSpeed = INITIAL_PIPE_SPEED + (difficulty.current - 1);
-            const currentPipeGap = Math.max(INITIAL_PIPE_GAP - (difficulty.current - 1) * 10, 100);
+            const baseGap = INITIAL_PIPE_GAP - (difficulty.current - 1) * 10;
+            const scaledGap = Math.max(baseGap * scale.current, 60); // กำหนด gap ขั้นต่ำ เช่น 60px
+
             const currentPipeInterval = BASE_PIPE_INTERVAL / difficulty.current;
 
-            velocity.current += GRAVITY;
+            const scaledGravity = GRAVITY * scale.current;
+            velocity.current += scaledGravity;
             birdY.current += velocity.current;
 
             if (now - lastPipeTime.current > currentPipeInterval) {
-                const gapTop = Math.random() * (canvasSize.current.height - currentPipeGap - 100) + 50;
+                const gapTop = Math.random() * (canvasSize.current.height - scaledGap - 100) + 50;
 
                 const newPipe: Pipe = {
                     x: canvasSize.current.width,
                     prevX: canvasSize.current.width,
                     gapTop,
-                    gapHeight: currentPipeGap,
+                    gapHeight: scaledGap,
                     passed: false,
                 };
 
@@ -318,7 +331,7 @@ const HrGame2: React.FC = () => {
 
                 // 🎁 Spawn ไอเทมแบบสุ่ม (30% โอกาส)
                 if (Math.random() < 0.3) {
-                    const heartY = gapTop + currentPipeGap / 2;
+                    const heartY = gapTop + scaledGap / 2;
                     items.current.push({
                         x: newPipe.x + INITIAL_PIPE_WIDTH / 2,
                         prevX: newPipe.x + INITIAL_PIPE_WIDTH / 2,
@@ -399,6 +412,7 @@ const HrGame2: React.FC = () => {
                 isGameOver.current = true;
                 setShowGameOver(true);
             }
+
         }, PHYSICS_TICK);
 
         const renderLoop = () => {
@@ -413,18 +427,6 @@ const HrGame2: React.FC = () => {
             ctx.fillRect(0, 0, width, height);
 
             ctx.fillStyle = 'green';
-            // pipes.current.forEach(pipe => {
-            //     const interpolatedX = pipe.prevX + (pipe.x - pipe.prevX) * alpha;
-            //
-            //     ctx.fillRect(interpolatedX, 0, INITIAL_PIPE_WIDTH, pipe.gapTop);
-            //     ctx.fillRect(
-            //         interpolatedX,
-            //         pipe.gapTop + pipe.gapHeight,
-            //         INITIAL_PIPE_WIDTH,
-            //         height - (pipe.gapTop + pipe.gapHeight)
-            //     );
-            // });
-
 
 
             if (mountainImage.current) {
@@ -460,8 +462,6 @@ const HrGame2: React.FC = () => {
                 }
             }
 
-
-
             clouds.current
                 .slice() // clone เพื่อไม่แก้ array ต้นฉบับ
                 .sort((a, b) => a.speed - b.speed) // speed น้อย = ไกล → วาดก่อน
@@ -475,17 +475,16 @@ const HrGame2: React.FC = () => {
                 });
 
 
-
             pipes.current.forEach(pipe => {
                 pipes.current.forEach(pipe => {
                     const interpolatedX = pipe.prevX + (pipe.x - pipe.prevX) * alpha;
 
-                    const pipeWidth = INITIAL_PIPE_WIDTH;
+                    const pipeWidth = INITIAL_PIPE_WIDTH * scale.current;
                     const pipeTopHeight = pipe.gapTop;
                     const pipeBottomY = pipe.gapTop + pipe.gapHeight;
                     const pipeBottomHeight = height - pipeBottomY;
 
-                    const pipeHeadHeight = 30; // <-- ปรับตามความสูงจริงของหัวท่อ
+                    const pipeHeadHeight = 30 * scale.current;
 
                     if (pipeImage.current && pipeHeadImage.current) {
                         // 🟢 วาดท่อบน (body)
@@ -528,38 +527,6 @@ const HrGame2: React.FC = () => {
                             pipeHeadHeight
                         );
 
-                        // 🟥 วาด hitbox ของ pipe ด้วย
-                        // ctx.strokeStyle = 'red';
-                        // ctx.lineWidth = 1;
-                        //
-                        // pipes.current.forEach(pipe => {
-                        //     const interpolatedX = pipe.prevX + (pipe.x - pipe.prevX) * alpha;
-                        //     const pipeWidth = INITIAL_PIPE_WIDTH;
-                        //
-                        //     const pipeTopY = 0;
-                        //     const pipeTopHeight = pipe.gapTop;
-                        //
-                        //     const pipeBottomY = pipe.gapTop + pipe.gapHeight;
-                        //     const pipeBottomHeight = height - pipeBottomY;
-                        //
-                        //     // ท่อบน
-                        //     ctx.strokeRect(
-                        //         interpolatedX,
-                        //         pipeTopY,
-                        //         pipeWidth,
-                        //         pipeTopHeight
-                        //     );
-                        //
-                        //     // ท่อล่าง
-                        //     ctx.strokeRect(
-                        //         interpolatedX,
-                        //         pipeBottomY,
-                        //         pipeWidth,
-                        //         pipeBottomHeight
-                        //     );
-                        // });
-
-
                     } else {
                         // fallback debug
                         ctx.fillStyle = 'green';
@@ -594,14 +561,10 @@ const HrGame2: React.FC = () => {
                 ctx.restore();
             });
 
-
-
-
             // 🐦 Draw sprite bird
             if (birdImage.current) {
-                const SCALE = 1;
-                const drawWidth = BIRD_FRAME_WIDTH * SCALE;
-                const drawHeight = BIRD_FRAME_HEIGHT * SCALE;
+                const drawWidth = BIRD_FRAME_WIDTH * scale.current;
+                const drawHeight = BIRD_FRAME_HEIGHT * scale.current;
 
                 // ✨ เริ่มกระพริบ
                 const now = performance.now();
@@ -621,37 +584,8 @@ const HrGame2: React.FC = () => {
                     drawWidth,
                     drawHeight
                 );
-
-                // Hitbox ที่ interpolate แล้ว (ลื่น)
-                // ctx.strokeStyle = 'yellow';
-                // ctx.strokeRect(
-                //     birdX.current - drawWidth / 2,
-                //     interpolatedY - drawHeight / 2,
-                //     drawWidth,
-                //     drawHeight
-                // );
-
-                // Hitbox จริงตาม physics (แดง)
-                // ctx.strokeStyle = 'red';
-                // ctx.strokeRect(
-                //     birdX.current - drawWidth / 2,
-                //     birdY.current - drawHeight / 2,
-                //     drawWidth,
-                //     drawHeight
-                // );
-
-                // 🎯 วาด collider ตามที่ใช้ในฟิสิกส์ (±20px hitbox)
-                // ctx.beginPath();
-                // ctx.strokeStyle = 'red';
-                // ctx.lineWidth = 2;
-                // ctx.arc(birdX.current, birdY.current, 20, 0, 2 * Math.PI); // Radius = 20
-                // ctx.stroke();
-
-
                 ctx.globalAlpha = 1; // 🔄 รีเซ็ต
             }
-
-
 
 
             ctx.fillStyle = 'white';
@@ -660,28 +594,6 @@ const HrGame2: React.FC = () => {
 
             ctx.font = '20px sans-serif';
             ctx.fillText(`Difficulty: ${difficulty.current}`, 20, 80);
-
-            // if (isGameOver.current) {
-            //     const boxWidth = 400;
-            //     const boxHeight = 150;
-            //     const boxX = width / 2 - boxWidth / 2;
-            //     const boxY = height / 2 - boxHeight / 2;
-            //
-            //     // 🔳 วาดกล่องพื้นหลังโปร่งใส
-            //     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // สีดำโปร่งใส
-            //     ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-            //
-            //     // 📝 วาดข้อความ
-            //     ctx.fillStyle = 'white';
-            //     ctx.font = '48px sans-serif';
-            //     ctx.textAlign = 'center';
-            //     ctx.fillText('เก่งมาก!', width / 2, height / 2 - 20);
-            //
-            //     ctx.font = '32px sans-serif';
-            //     ctx.fillText(`คะแนนของคุณ: ${score.current}`, width / 2, height / 2 + 30);
-            // }
-
-
 
             if (heartImage.current) {
                 for (let i = 0; i < lives.current; i++) {
@@ -701,8 +613,6 @@ const HrGame2: React.FC = () => {
                     ctx.restore();
                 }
             }
-
-
 
             requestAnimationFrame(renderLoop);
         };
@@ -727,13 +637,12 @@ const HrGame2: React.FC = () => {
         jumpComboCount.current++;
         lastJumpTime.current = now;
 
-        let jumpVelocity = JUMP_BASE + (jumpComboCount.current - 1) * JUMP_GROWTH;
-
-        if (jumpVelocity < MAX_JUMP_VELOCITY) {
-            jumpVelocity = MAX_JUMP_VELOCITY;
+        let jumpVelocity = (JUMP_BASE + (jumpComboCount.current - 1) * JUMP_GROWTH) * scale.current;
+        if (jumpVelocity < MAX_JUMP_VELOCITY * scale.current) {
+            jumpVelocity = MAX_JUMP_VELOCITY * scale.current;
         }
-
         velocity.current = jumpVelocity;
+
     };
 
 
