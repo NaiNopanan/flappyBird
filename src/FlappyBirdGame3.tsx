@@ -464,7 +464,7 @@ const HrGame2: React.FC = () => {
                 const dy = item.y - birdY.current;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist < 100 && !item.collected) {
+                if (dist < s(100) && !item.collected) {
                     item.collected = true;
                     if (item.type === 'heart' && lives.current < 10) {
                         lives.current += 1;
