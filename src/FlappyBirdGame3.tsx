@@ -701,7 +701,6 @@ const HrGame2: React.FC = () => {
 
     return (
         <div
-            onClick={handleJump}
             onTouchStart={handleJump}
             style={{
                 outline: 'none',
