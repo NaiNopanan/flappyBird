@@ -37,6 +37,8 @@ class Bird extends GameObject {
     gravity = 0.5;
     jumpStrength = -10;
     score = 0;
+    lives = 3; // ✅ เพิ่มจำนวนหัวใจเริ่มต้น
+    invincibleUntil = 0;
 
     constructor() {
         super();
@@ -44,6 +46,7 @@ class Bird extends GameObject {
         this.y = 100;
         this.width = 40;
         this.height = 40;
+        this.tag = 'bird'; // ✅ สำคัญ
     }
 
     update(dt: number, scene: Scene) {
@@ -53,20 +56,30 @@ class Bird extends GameObject {
         this.velocityY += this.gravity;
         this.y += this.velocityY;
 
+        const now = performance.now();
+
         const pipes = scene.getByTag('pipe') as Pipe[];
         for (const pipe of pipes) {
             if (this.checkCollision(pipe)) {
-                console.log("💥 Hit!");
-                this.velocityY = 0; // หรือจบเกม
+                if (now > this.invincibleUntil) {
+                    if (this.lives > 0) {
+                        this.lives--;
+                        this.invincibleUntil = now + 1000; // ⏱️ 1 วินาทีอมตะ
+                        console.log("💥 Hit! Lives left:", this.lives);
+                    } else {
+                        console.log("☠️ Game Over!");
+                    }
+                }
             }
 
             if (!pipe.passed && pipe.x + pipe.width < this.x) {
                 pipe.passed = true;
                 this.score++;
-                console.log("🎉 Score:", this.score);
             }
         }
     }
+
+
 
     checkCollision(pipe: Pipe): boolean {
         const birdBottom = this.y + this.height;
@@ -174,6 +187,57 @@ class Pipe extends GameObject {
         ctx.restore();
     }
 }
+
+class Heart extends GameObject {
+    constructor(x: number, y: number) {
+        super();
+        this.x = x;
+        this.y = y;
+        this.width = 20;
+        this.height = 20;
+    }
+
+    update(dt: number, scene: Scene) {
+        this.prevX = this.x;
+        this.x -= 100 * dt;
+
+        // ลบถ้าออกนอกจอ
+        if (this.x + this.width < (scene.camera?.x ?? 0)) {
+            scene.remove(this);
+        }
+
+        // ตรวจสอบการเก็บ
+        const bird = scene.getByTag("bird")[0] as Bird;
+        if (bird && this.checkCollect(bird)) {
+            scene.remove(this);
+            if (bird.lives < 3) bird.lives++;
+            console.log("💖 Collected!");
+        }
+    }
+
+    checkCollect(bird: Bird): boolean {
+        return (
+            this.x < bird.x + bird.width &&
+            this.x + this.width > bird.x &&
+            this.y < bird.y + bird.height &&
+            this.y + this.height > bird.y
+        );
+    }
+
+    render(ctx: CanvasRenderingContext2D, camera: Camera, alpha: number) {
+        const interpX = this.prevX + (this.x - this.prevX) * alpha;
+        const interpY = this.prevY + (this.y - this.prevY) * alpha;
+
+        ctx.save();
+        camera.applyTransform(ctx);
+        ctx.fillStyle = 'pink';
+        ctx.beginPath();
+        ctx.arc(interpX + 10, interpY + 10, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
 
 
 class Scene {
@@ -335,6 +399,14 @@ const HrGame2: React.FC = () => {
             ctx.font = '32px sans-serif';
             ctx.fillText(`Score: ${bird.score}`, 20, 40);
 
+            // แสดงหัวใจ
+            for (let i = 0; i < bird.lives; i++) {
+                ctx.fillStyle = 'red';
+                const size = 24;
+                ctx.beginPath();
+                ctx.arc(30 + i * (size + 10), 70, size / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
 
             requestAnimationFrame(loop);
         };
@@ -364,6 +436,14 @@ const HrGame2: React.FC = () => {
             const pipe = new Pipe(spawnX, gapTop, gapSize, 100);
             pipe.tag = 'pipe';
             scene.add(pipe);
+
+            // 🔁 30% โอกาสสร้างหัวใจ
+            if (Math.random() < 0.3) {
+                const heart = new Heart(spawnX + pipe.width / 2 - 10, gapTop + gapSize / 2 - 10); // << อยู่กลาง gap
+                heart.tag = 'heart';
+                scene.add(heart);
+            }
+
         }, 2000);
 
         return () => {
