@@ -66,6 +66,78 @@ type Cloud = {
 
 const HrGame2: React.FC = () => {
 
+    const [assetsLoaded, setAssetsLoaded] = useState(false);
+    const cloudImageElement = useRef<HTMLImageElement | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
+
+
+    useEffect(() => {
+        const loadImage = (src: string): Promise<HTMLImageElement> => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = src;
+                img.onload = () => resolve(img);
+                img.onerror = reject;
+            });
+        };
+
+        Promise.all([
+            loadImage(BIRD_SPRITE_SRC).then(img => (birdImage.current = img)),
+            loadImage(pipeBody).then(img => (pipeImage.current = img)),
+            loadImage(pipeHead).then(img => (pipeHeadImage.current = img)),
+            loadImage(cloudImage).then(img => (cloudImageElement.current = img)), // ✅ แก้ตรงนี้
+            loadImage(mountain).then(img => (mountainImage.current = img)),
+            loadImage(city).then(img => (cityImage.current = img)),
+            loadImage(heart).then(img => (heartImage.current = img)),
+        ])
+            .then(() => {
+                setAssetsLoaded(true); // ✅ mark as ready
+            })
+            .catch((err) => {
+                console.error("❌ Error loading assets", err);
+            });
+    }, []);
+
+    useEffect(() => {
+        if (!assetsLoaded || !cloudImageElement.current || scale.current === 0) return;
+
+        const sources = [
+            { img: cloudImageElement.current, speed: 0.4, scale: 0.2 },
+            { img: cloudImageElement.current, speed: 0.6, scale: 0.4 },
+        ];
+
+        const newClouds: Cloud[] = [];
+        const cloudCount = 8;
+        const MIN_CLOUD_DISTANCE = 600;
+
+        for (let i = 0; i < cloudCount; i++) {
+            let attempt = 0;
+            while (attempt++ < 10) {
+                const src = sources[Math.floor(Math.random() * sources.length)];
+                const randScale = 0.8 + Math.random() * 0.4;
+                const width = s(src.img.width * src.scale * randScale);
+                const height = s(src.img.height * src.scale * randScale);
+                const x = Math.random() * canvasSize.current.width;
+
+                const tooClose = newClouds.some(c => Math.abs(c.x - x) < MIN_CLOUD_DISTANCE);
+                if (!tooClose) {
+                    newClouds.push({
+                        image: src.img,
+                        x,
+                        y: Math.random() * 200,
+                        speed: src.speed,
+                        width,
+                        height,
+                    });
+                    break;
+                }
+            }
+        }
+
+        clouds.current = newClouds;
+    }, [assetsLoaded]);
+
+
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const velocity = useRef(0);
     const birdY = useRef(200);
@@ -139,61 +211,54 @@ const HrGame2: React.FC = () => {
     const MIN_CLOUD_DISTANCE = 600; // px
     const MAX_ATTEMPTS = 10; // ป้องกันลูปไม่จบ
 
-    useEffect(() => {
-        const sources = [
-            { src: cloudImage, speed: 0.4, scale: 0.2 }, // กลาง
-            { src: cloudImage, speed: 0.6, scale: 0.4 }, // ใกล้
-        ];
 
-        Promise.all(
-            sources.map(source => {
-                return new Promise<HTMLImageElement>((resolve) => {
-                    const img = new Image();
-                    img.src = source.src;
-                    img.onload = () => resolve(img);
-                });
-            })
-        ).then(images => {
-            const newClouds: Cloud[] = [];
-            const cloudCount = 8;
 
-            for (let i = 0; i < cloudCount; i++) {
-                let attempt = 0;
-                let added = false;
-
-                while (attempt < MAX_ATTEMPTS && !added) {
-                    const index = Math.floor(Math.random() * images.length);
-                    const img = images[index];
-                    const baseScale = sources[index].scale;
-                    const randScale = 0.8 + Math.random() * 0.4;
-
-                    const width = s(img.width * baseScale * randScale);
-                    const height = s(img.height * baseScale * randScale);
-                    const x = Math.random() * canvasSize.current.width;
-
-                    const tooClose = newClouds.some(c => Math.abs(c.x - x) < MIN_CLOUD_DISTANCE);
-                    if (!tooClose) {
-                        newClouds.push({
-                            image: img,
-                            x,
-                            y: Math.random() * 200,
-                            speed: sources[index].speed,
-                            width,
-                            height,
-                        });
-                        added = true;
-                    }
-
-                    attempt++;
-                }
-
-                // ถ้าหาไม่ได้ใน 10 ครั้ง เราจะไม่เพิ่ม cloud ใหม่
-            }
-
-            clouds.current = newClouds;
-        });
-
-    }, []);
+    // useEffect(() => {
+    //     const cloudImg = new Image();
+    //     cloudImg.src = cloudImage;
+    //
+    //     cloudImg.onload = () => {
+    //         const sources = [
+    //             { img: cloudImg, speed: 0.4, scale: 0.2 },
+    //             { img: cloudImg, speed: 0.6, scale: 0.4 },
+    //         ];
+    //
+    //         const newClouds: Cloud[] = [];
+    //         const cloudCount = 8;
+    //
+    //         for (let i = 0; i < cloudCount; i++) {
+    //             let attempt = 0;
+    //             let added = false;
+    //
+    //             while (attempt++ < 10 && !added) {
+    //                 const src = sources[Math.floor(Math.random() * sources.length)];
+    //                 const randScale = 0.8 + Math.random() * 0.4;
+    //                 const width = s(src.img.width * src.scale * randScale);
+    //                 const height = s(src.img.height * src.scale * randScale);
+    //                 const x = Math.random() * canvasSize.current.width;
+    //
+    //                 const tooClose = newClouds.some(c => Math.abs(c.x - x) < 600);
+    //                 if (!tooClose) {
+    //                     newClouds.push({
+    //                         image: src.img,
+    //                         x,
+    //                         y: Math.random() * 200,
+    //                         speed: src.speed,
+    //                         width,
+    //                         height,
+    //                     });
+    //                     added = true;
+    //                 }
+    //             }
+    //         }
+    //
+    //         clouds.current = newClouds;
+    //     };
+    //
+    //     cloudImg.onerror = () => {
+    //         console.error("❌ โหลดภาพเมฆไม่สำเร็จ:", cloudImage);
+    //     };
+    // }, []);
 
 
     const mountainImage = useRef<HTMLImageElement | null>(null);
@@ -234,6 +299,9 @@ const HrGame2: React.FC = () => {
 
 
     useEffect(() => {
+
+        if (!assetsLoaded) return;
+
         const canvas = canvasRef.current!;
         const ctx = canvas.getContext('2d')!;
 
@@ -623,16 +691,22 @@ const HrGame2: React.FC = () => {
 
 
 
-            requestAnimationFrame(renderLoop);
+            animationFrameRef.current = requestAnimationFrame(renderLoop);
+
         };
 
-        requestAnimationFrame(renderLoop);
+        animationFrameRef.current = requestAnimationFrame(renderLoop);
+
 
         return () => {
             window.removeEventListener('resize', resize);
             clearInterval(physicsInterval);
+            if (animationFrameRef.current !== null) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
+
         };
-    }, []);
+    }, [[assetsLoaded]]);
 
     const   handleJump = () => {
         if (isGameOver.current) return;
@@ -700,6 +774,24 @@ const HrGame2: React.FC = () => {
         setShowGameOver(false);
     };
 
+
+    if (!assetsLoaded) {
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '100vw',
+                height: '100vh',
+                backgroundColor: '#222',
+                color: 'white',
+                fontSize: '32px',
+                fontFamily: 'sans-serif',
+            }}>
+                กำลังโหลดเกม...
+            </div>
+        );
+    }
 
 
     return (
